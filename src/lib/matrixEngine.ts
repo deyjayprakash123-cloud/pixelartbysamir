@@ -96,12 +96,12 @@ export function renderScrollDecodeFrame(params: {
     const rowNorm = r / Math.max(1, rows - 1);
     const frontierDist = Math.abs(rowNorm - revealThreshold);
     const isFrontier =
-      frontierDist < 0.09 && revealThreshold > 0.02 && revealThreshold < 0.98;
+      frontierDist < 0.08 && revealThreshold > 0.01 && revealThreshold < 0.99;
     const rowGlitchShift = isFrontier
       ? Math.round(
           (deterministicNoise(r, Math.floor(revealThreshold * 40), timeTick) -
             0.5) *
-            6
+            5
         )
       : 0;
 
@@ -112,10 +112,13 @@ export function renderScrollDecodeFrame(params: {
       const localResolve =
         revealThreshold * 1.18 - rowNorm * 0.28 - cellOrder * 0.16;
 
+      // Always keep a subtle animated binary/ASCII pulse even at 0% scroll so canvas never looks stuck
       if (localResolve <= 0) {
-        if (deterministicNoise(c, r, timeTick) > 0.72) {
-          const ch = deterministicNoise(r, c, timeTick) > 0.5 ? "1" : "0";
-          ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
+        const pulse = deterministicNoise(c, r, Math.floor(timeTick / 4));
+        if (lum > 0.2 && pulse > 0.35) {
+          const ch = pulse > 0.68 ? "1" : "0";
+          const alpha = Math.max(0.08, lum * 0.28);
+          ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
           ctx.fillText(ch, (c + 0.5) * cellW, (r + 0.5) * cellH);
         }
         continue;
@@ -123,7 +126,7 @@ export function renderScrollDecodeFrame(params: {
 
       if (localResolve < 0.25 || isFrontier) {
         const gIdx = Math.floor(
-          deterministicNoise(c, r, timeTick + Math.floor(progress * 100)) *
+          deterministicNoise(c, r, Math.floor(timeTick / 2) + Math.floor(progress * 100)) *
             glitchPool.length
         );
         const ch = glitchPool[gIdx] ?? "#";
@@ -142,10 +145,16 @@ export function renderScrollDecodeFrame(params: {
         continue;
       }
 
+      // Resolved ASCII Mona Lisa with subtle continuous Matrix shimmer so output stays alive
       const charIdx = Math.round(lum * (ramp.length - 1));
-      const ch = ramp[charIdx] ?? " ";
+      let ch = ramp[charIdx] ?? " ";
       if (ch === " ") continue;
-      const alpha = Math.max(0.12, Math.min(1, lum));
+
+      if (lum > 0.35 && deterministicNoise(c, r, Math.floor(timeTick / 6)) > 0.96) {
+        ch = deterministicNoise(r, c, timeTick) > 0.5 ? "1" : "0";
+      }
+
+      const alpha = Math.max(0.14, Math.min(1, lum));
       ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
       ctx.fillText(ch, (c + 0.5) * cellW, (r + 0.5) * cellH);
     }

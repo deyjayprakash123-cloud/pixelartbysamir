@@ -15,8 +15,8 @@ const SECTION_SELECTORS = [
 ];
 
 /**
- * Coordinates Lenis smooth scrolling with GSAP ScrollTrigger and tracks
- * global scroll progress + the active section for terminal navigation.
+ * Coordinates Lenis smooth scrolling with GSAP ScrollTrigger across both desktop
+ * and mobile touch screens without breaking sticky containers.
  */
 export function useGsapScroll<T extends HTMLElement = HTMLElement>(
   scopeRef: RefObject<T | null>
@@ -26,10 +26,13 @@ export function useGsapScroll<T extends HTMLElement = HTMLElement>(
   const [activeSection, setActiveSection] = useState("#sec-hero");
 
   useEffect(() => {
+    ScrollTrigger.config({ ignoreMobileResize: true });
+
     const lenis = new Lenis({
-      duration: 1.15,
+      duration: 1.05,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
+      touchMultiplier: 1.4,
     });
     lenisRef.current = lenis;
 
@@ -56,7 +59,11 @@ export function useGsapScroll<T extends HTMLElement = HTMLElement>(
       });
     }, scopeRef);
 
+    const handleResize = () => ScrollTrigger.refresh();
+    window.addEventListener("resize", handleResize);
+
     return () => {
+      window.removeEventListener("resize", handleResize);
       ctx.revert();
       gsap.ticker.remove(onTick);
       lenis.destroy();

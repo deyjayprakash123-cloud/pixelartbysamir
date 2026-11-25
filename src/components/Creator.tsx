@@ -22,7 +22,7 @@ import {
   type CharsetId,
   type ExportResult,
 } from "@/types/pixelate";
-import { createMonaLisaCanvas } from "@/lib/monaLisa";
+import { loadMonaLisaSource, MONA_LISA_SRC } from "@/lib/monaLisa";
 import { deterministicNoise } from "@/lib/matrixEngine";
 import {
   pickSupportedMimeType,
@@ -266,10 +266,25 @@ export function Creator() {
           if (!cell) continue;
 
           let ch = cell.char;
-          // Living binary bit-flip shimmer for resolved binary frames
-          if (activeCharset === "binary" && cell.luma > 0.08) {
-            const flip = deterministicNoise(c, r, tick);
-            ch = flip < cell.luma ? ramp[ramp.length - 1] : ramp[1];
+          // Continuous living Matrix shimmer across all charsets so output never looks stuck
+          if (cell.luma > 0.08) {
+            if (activeCharset === "binary") {
+              const flip = deterministicNoise(c, r, tick);
+              ch = flip < cell.luma ? ramp[ramp.length - 1] : ramp[1];
+            } else if (
+              !isActiveScanRow &&
+              deterministicNoise(c, r, Math.floor(tick / 2)) > 0.94
+            ) {
+              const shiftIdx = Math.max(
+                1,
+                Math.min(
+                  ramp.length - 1,
+                  Math.round(cell.luma * (ramp.length - 1)) +
+                    (deterministicNoise(r, c, tick) > 0.5 ? 1 : -1)
+                )
+              );
+              ch = ramp[shiftIdx] ?? ch;
+            }
           }
 
           if (isActiveScanRow) {
@@ -411,13 +426,17 @@ export function Creator() {
     [computeCanvasSize, processImageIntoGrid, resolution, startProgressiveLoop]
   );
 
-  const loadDefaultMonaLisa = useCallback(() => {
-    const mona = createMonaLisaCanvas(560, 720);
-    applySourceImage(mona, "MONA_LISA_SAMPLE.GEN", mona.toDataURL("image/png"));
+  const loadDefaultMonaLisa = useCallback(async () => {
+    const mona = await loadMonaLisaSource();
+    const thumb =
+      mona instanceof HTMLImageElement
+        ? MONA_LISA_SRC
+        : mona.toDataURL("image/png");
+    applySourceImage(mona, "MONA_LISA.JPG", thumb);
   }, [applySourceImage]);
 
   useEffect(() => {
-    loadDefaultMonaLisa();
+    void loadDefaultMonaLisa();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -502,12 +521,12 @@ export function Creator() {
   return (
     <section
       id="sec-workspace"
-      className="relative w-full border-b border-white bg-black py-14 sm:py-24"
+      className="relative w-full border-b border-white bg-black py-12 sm:py-24"
     >
       {/* Hidden offscreen canvas used exclusively for ImageData RGBA extraction */}
       <canvas ref={hiddenCanvasRef} className="hidden" aria-hidden="true" />
 
-      <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-8">
+      <div className="mx-auto w-full max-w-[1400px] px-3 sm:px-8">
         {/* Section Heading */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white pb-5">
           <div>
@@ -713,15 +732,15 @@ export function Creator() {
           </div>
 
           {/* RIGHT COLUMN: Canvas Output + Export */}
-          <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between gap-5 bg-black">
+          <div className="lg:col-span-7 p-4 sm:p-6 flex flex-col justify-between gap-4 sm:gap-5 bg-black">
             {/* Large <canvas> area with thick white border */}
-            <div className="relative flex-1 flex items-center justify-center border-2 border-white bg-black p-3 min-h-[340px] sm:min-h-[520px] brutal-grid-bg">
+            <div className="relative flex-1 flex items-center justify-center border-2 border-white bg-black p-2 sm:p-3 min-h-[300px] sm:min-h-[520px] brutal-grid-bg">
               <canvas
                 ref={outputCanvasRef}
                 width={canvasDim.w}
                 height={canvasDim.h}
                 data-cursor="+"
-                className="max-w-full max-h-[65vh] w-auto h-auto bg-black"
+                className="max-w-full max-h-[58dvh] sm:max-h-[65vh] w-auto h-auto bg-black"
               />
 
               {isRecording && (

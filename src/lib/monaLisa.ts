@@ -1,6 +1,23 @@
+export const MONA_LISA_SRC = "/images/mona-lisa.jpg";
+
 /**
- * Generates a high-contrast monochrome portrait inspired by Leonardo da Vinci's
- * Mona Lisa directly onto an HTMLCanvasElement (zero external URLs, zero CORS taint).
+ * Loads the real Mona Lisa asset from /images/mona-lisa.jpg and falls back
+ * to the procedural portrait canvas only if the static asset fails to load.
+ */
+export function loadMonaLisaSource(): Promise<
+  HTMLImageElement | HTMLCanvasElement
+> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(createMonaLisaCanvas(560, 720));
+    img.src = MONA_LISA_SRC;
+  });
+}
+
+/**
+ * Generates a fallback monochrome portrait inspired by Leonardo da Vinci's
+ * Mona Lisa directly onto an HTMLCanvasElement.
  */
 export function createMonaLisaCanvas(width = 640, height = 820): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
